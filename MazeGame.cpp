@@ -1,4 +1,3 @@
-//#include <GLFW/glfw3.h>
 #ifdef __APPLE__
 #include <OpenGL/gl.h>
 #include <OpenGL/glu.h>
@@ -44,9 +43,9 @@ float blueBounce = 0.05f;           //initializing the bounce to start from 0.05
 int blueTimeSpan = 0;             
 
 //Initializations for maze size
-const int mapRows = 20;           //number of rows to put boxes in the maze
-const int mapCols = 20;           //number of columns to put boxes in the maze
-int map[mapRows][mapCols] = {       //out main map array for maze, where every 1 is a wall, 0 is a free space where player/camera can move and 2 is red boxes in different places.
+const int mapRows = 20;           
+const int mapCols = 20;           
+int map[mapRows][mapCols] = {       
     {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
     {1,0,0,0,0,0,0,1,0,1,1,0,0,0,0,0,0,0,0,1},
     {1,0,0,0,0,1,0,0,0,0,2,0,1,1,1,1,0,1,0,1},
@@ -73,18 +72,18 @@ int map[mapRows][mapCols] = {       //out main map array for maze, where every 1
 float rotAng = 0.0f;            //angle by which the red box rotates repeatedly
 
 //Initialization for the total number of Hittable box in the game
-int boxCounter = 5;                 //initializing the total number of box in our maze as 5
+int boxCounter = 5;                 
 
 //Initializing the breadth and height of each box/wall to place in our world
 float cellBreadth = (rig - lef) / mapCols;
 float cellHeight = (top - bot) / mapRows;
 
 //Initialize the camera position
-float cameraX = lef + cellBreadth / 2.0f + 2 * cellBreadth;     //Initializing the location to place our camera in x direction(slightly inside the world by 2 cells)
-float cameraY = 0.049f;                                         //placing the camera at fixed height, around center of a cell
-float cameraZ = bot + cellHeight / 2.0f + 2 * cellHeight;       //Initializing the location to place our camera in z direction(slightly inside the world by 2 cells)
+float cameraX = lef + cellBreadth / 2.0f + 2 * cellBreadth;     
+float cameraY = 0.049f;                                         
+float cameraZ = bot + cellHeight / 2.0f + 2 * cellHeight;       
 
-float cameraSpacing = cellBreadth* 0.99f;               //initializing cameraspacing for camera movement(each step)
+float cameraSpacing = cellBreadth* 0.99f;               
 
 //Converts a angle from degrees to radians to use with trignometric functions
 //Takes angle in degree and and returns angle in radians
@@ -112,7 +111,7 @@ bool collisionDetection(float x, float z) {
 
         //checking for collision of camera with a red box(by checking if the current position of camera includes a red box)
         if ( map[mapZ][mapX] == 2 && boxCounter <= 5) { // red box
-            boxCounter--;       //decreasing the number of red boxes count when a collision is detected
+            boxCounter--;       
             
             //handling if all the red boxes are already hit and current count is equal to zero
             if (boxCounter <= 0) {
@@ -120,16 +119,16 @@ bool collisionDetection(float x, float z) {
                 // Reset all boxes to red
                 for (int i = 0; i < mapRows; i++) {
                     for (int j = 0; j < mapCols; j++) {
-                        if (map[i][j] == 3) {       //resetting each of the red boxes back to green as per our winning/game completion condition
-                            map[i][j] = 2;      //setting each maze with green boxes back to red
+                        if (map[i][j] == 3) {       
+                            map[i][j] = 2;      
                         }
                         // Change walls to green
-                        if (map[i][j] == 1) {           //converting all the wall with yellow color to green(winning/game completion as required)
-                            map[i][j] = 4;              // assuming 4 = green wall, we converted each wall into green color
+                        if (map[i][j] == 1) {           
+                            map[i][j] = 4;              
                         }
                     }
                 }
-                boxCounter = 6;                         // reset counter to value greater than 5, to avoid detecting further collision after game is finished
+                boxCounter = 6;                         
                 printf("Game is completed!, Thank you for playing\n");      //game ended printing to the console
             }
             else {
@@ -234,9 +233,6 @@ void moveUp() {
     float dx = cameraX +  dir_X * cameraSpeed;      //new x position
     float dz = cameraZ +  dir_Z * cameraSpeed;      //new z position
 
-    //here we are just calling the function, because i have implemented a color change method inside the collision detection, which doesnot
-    //return anything but only changes the color of the red box to green when hit by camera
-    //I saw this feature in demo so implemented it in my maze game as well
     collisionDetection(dx, dz);
 
     //this condition updates the camera to next position only if
@@ -423,7 +419,7 @@ void bounceBlueBox() {
     blueX = blueX + speedX;
     blueZ = blueZ + speedZ;
 
-    float t = (float)(200 - blueTimeSpan);      //calculating a value for bouncing motion of our cube, it is time based so ultimately reduces such that sine function gives a decreasing height for bounce each time
+    float t = (float)(200 - blueTimeSpan);      
 
     //updating the y position using sine function to create a bouncing effect as sine has a parabolic/curve motion
     //the use of fabs() is to make sure we always have the sine function to return a position value so that our cube doesnot bounce from below the surface of our maze
