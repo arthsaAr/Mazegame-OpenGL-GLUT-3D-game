@@ -1,3 +1,11 @@
+/******************************************************************************
+*  File Name:    MazeGame.java
+*  Author:       Raashtra KC
+*  Date:         2025-10-15
+*  Language:     C++
+*  Notes:        Make sure the required libraries are installed
+******************************************************************************/
+
 #ifdef __APPLE__
 #include <OpenGL/gl.h>
 #include <OpenGL/glu.h>
