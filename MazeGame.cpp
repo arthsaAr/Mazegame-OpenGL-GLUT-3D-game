@@ -1,5 +1,5 @@
 /******************************************************************************
-*  File Name:    MazeGame.java
+*  File Name:    MazeGame.cpp
 *  Author:       Raashtra KC
 *  Date:         2025-10-15
 *  Language:     C++
