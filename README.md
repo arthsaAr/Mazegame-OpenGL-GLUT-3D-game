@@ -13,7 +13,7 @@ This is a 3D maze exploration game where the player moves around a maze to colle
 - Lighting and transformations applied to enhance depth and visual immersion.
 - Implemented a bouncing blue cube which is shot by the player. This cube can be used to hit the red cubes.
 - After all the cubes are hit, the maze turns its wall color to green and the cubes back to red (game ending condition).
-- 
+  
 ## Controls
 
 | Key / Action        | Description                                        |
