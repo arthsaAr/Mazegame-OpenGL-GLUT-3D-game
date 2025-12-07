@@ -2,6 +2,7 @@
 *  File Name:    MazeGame.cpp
 *  Author:       Raashtra KC
 *  Date:         2025-10-15
+*  Updates: 	 Added textures on 2025-12-05
 *  Language:     C++
 *  Notes:        Make sure the required libraries are installed
 ******************************************************************************/
@@ -90,105 +91,238 @@ float cellHeight = (top - bot) / mapRows;
 float cameraX = lef + cellBreadth / 2.0f + 2 * cellBreadth;     //Initializing the location to place our camera in x direction(slightly inside the world by 2 cells)
 float cameraY = 0.049f;                                         //placing the camera at fixed height, around center of a cell
 float cameraZ = bot + cellHeight / 2.0f + 2 * cellHeight;       //Initializing the location to place our camera in z direction(slightly inside the world by 2 cells)
-
 float cameraSpacing = cellBreadth * 0.99f;               //initializing cameraspacing for camera movement(each step)
 
+//-------------------------------------------TEXTURING ADDITIONS-------------------------------------------//
+
+//defining a global size for our texture generation, in our case we are defining texture of size 64*64
 const int TEXTURE_SIZE = 64;
-//defining texture array for storing texture details for the brick pattern
+
+//creating a texture array for storing texture details for the brick pattern
+//this array of size 64*64 stores color, i.e. values of R,G,B for each index/pixel of wall cubes/boxes
 unsigned char brickTexture[TEXTURE_SIZE][TEXTURE_SIZE][3]; ///size three for assigning r,g,b(3 color values while generating texture)
+
 //defining texture array for storing texture details for the food that are being spawned in map(total of 5 in our case)
+//this array of size 64*64 stores color, i.e. values of R,G,B for each index/pixel of food cube
 unsigned char foodTexture[TEXTURE_SIZE][TEXTURE_SIZE][3];
 
-GLuint brickID, foodID;
+//defining texture array for storing texture details for the shootedCube from the camera(when SPACEBAR is pressed)
+//this array of size 64*64 stores color, i.e. values of R,G,B for each index/pixel of shooted ball(fired cube) 
+unsigned char fireTexture[TEXTURE_SIZE][TEXTURE_SIZE][3];
 
-void generateFoodTexture() {
-    int brickWidth = 22;   // pixels per brick horizontally
-    int brickHeight = 13;   // pixels per brick vertically
-    int gap = 1;         // thickness of mortar in pixels
+//defining an ADDITIONAL texture array for storing texture details for the floors in the map(to cover up the empty walking floor)
+//this array of size 64*64 stores color, i.e. values of R,G,B for each index/pixel of floor(a 2D cube placed on the x plane(horizontal axis)
+unsigned char floorTexture[TEXTURE_SIZE][TEXTURE_SIZE][3];
 
-    //looping over every pixel of our defined 64 * 64 image texutre, which becomes our texture for the walls
+//Defining custom texture ID for each type of textures we have and generating them accordingly
+//after generating a texture we store it's ID in these static GLuint variables(these are used to identify each textures)
+static GLuint brickID, foodID, fireID, floorID;
+
+//This function generates texture for the ball that is shot by the player by pressing SPACE BAR
+//It creates circular pattern(like a type of circular illusion of black and white(rings bigger and bigger as it spreads out), but here we have pattern of blue colors)
+//the rings/circular pattern created by this method follows the pattern, where it's center has white color, and as the circle becomes bigger we have darker and darker color(going towards dark blue)
+//the final look on cube produces a white spot at the center of each side
+void generateShootBoxTexture() {
+    //Finding the center coordinates of the texture(which in our case is always 32)
+    int centerX = TEXTURE_SIZE / 2;
+    int centerY = TEXTURE_SIZE / 2;
+
+    //looping through every texel(pixel) in the texture of size 64*64 that we defined and setting color for each pixel manually
     for (int col = 0; col < TEXTURE_SIZE; col++) {
         for (int row = 0; row < TEXTURE_SIZE; row++) {
+            // Calculate distance of the current texel from the center point of the face/overall texture
+            int dx = row - centerX;             //horizontal distance from the center
+            int dy = col - centerY;             //vertical distance from the center
+            //now calculating the exact distance using the distance formula
+            float distance = sqrt(dx * dx + dy * dy);
 
-            //initializing which row of the bricks we current are in,
-            //dividing the current column with the brick height gives us specific row position in that column
-            //in our case we will get,
-            //for columns 0 to 13: row will be 0
-            //for column 14-27
-            int curRow = col / brickHeight;
+            //now based on the distance from the center, we will assign different color to each of the pixel to create the circular ring pattern
+            //we have different conditions for assigning colors ranging from bright to dark blue as the distance changes from close to far
 
-            //// Apply half-brick horizontal offset on every other row
-            int xShifted = row;
-            if (curRow % 2 == 1) {
-                xShifted = row + brickWidth / 2;
+            //for all the texels with distance from center less than 10
+            //we assign a bright color(in other words is a white color)
+            if (distance < 10) {
+                //assigning white color to the specific col and row(index) of the array 
+                fireTexture[col][row][0] = 255;
+                fireTexture[col][row][1] = 255;
+                fireTexture[col][row][2] = 255;
             }
-
-            // Determine brick boundaries
-            int boundaryX = xShifted % brickWidth;
-            int boundaryY = col % brickHeight;
-
-            // Check if current pixel is the gap between the bricks or the acctual brick
-            //we assign if the current pixel is the gap, by checking if any of the boundary variable of the brick is less than the defined gap size
-            bool isGap = false;
-            if ((boundaryY < gap) || (boundaryX < gap)) {
-                isGap = true;
+            //with distance between 11 to 17
+            //we assign a light blue color
+            else if (distance < 18) {
+                fireTexture[col][row][0] = 0;
+                fireTexture[col][row][1] = 150;
+                fireTexture[col][row][2] = 255;
             }
+            //with distance between 18 to 25
+            //we assign a moderate darker blue color
+            else if (distance < 26) {
+                fireTexture[col][row][0] = 0;
+                fireTexture[col][row][1] = 100;
+                fireTexture[col][row][2] = 200;
+            }
+            //with distance between 26 to 33
+            //we assign a darker blue color
+            else if (distance < 34) {
+                fireTexture[col][row][0] = 0;
+                fireTexture[col][row][1] = 60;
+                fireTexture[col][row][2] = 130;
+            }
+            //with distance greater than 33,
+            //we assign a fixed dark blue color
+            else {
+                fireTexture[col][row][0] = 0;
+                fireTexture[col][row][1] = 30;
+                fireTexture[col][row][2] = 80;
+            }
+        }
+    }
+}
 
-            if (isGap) {
-                // Light gray color for the gap between the bricks(like real mortar color)
-                foodTexture[col][row][0] = 0;
-                foodTexture[col][row][1] = 255;
+//This function generates texture for our game/maze floor(Additional texture) to cover the empty floor we had while moving
+//it creates a grass like texture for the floor
+//for each texel of the texture we assign a green color but with some random noise added to each r,g and b values to make it look like grassy look
+void generateFloorTexture() {
+    //looping through every texel(pixel) in the texture of size 64*64 that we defined and setting color for each pixel manually
+    for (int col = 0; col < TEXTURE_SIZE; col++) {
+        for (int row = 0; row < TEXTURE_SIZE; row++) {
+            //generating a random integer value to add to our default green color
+            //it generates a value between 0 to 29
+            int noise = (rand() % 30);
+
+            //we have a default value for rgb as 20,100 and 20 which is dark green starting color and for each texel we add a noise that is generated using the random function
+            int r = 20 + noise;
+            int g = 100 + noise;
+            int b = 20 + noise;
+
+            //making sure we are always within the color range of 0 to 255
+            if (r < 0) {
+                r = 0;
+            }
+            if (r > 255) {
+                r = 255;
+            }
+            if (g < 0) {
+                g = 0;
+            }
+            if (g > 255) {
+                g = 255;
+            }
+            if (b < 0) {
+                b = 0;
+            }
+            if (b > 255){
+                b = 255;
+            }
+            
+            //assigning the green color with some random noise to make it look like grass surface
+            floorTexture[col][row][0] = r;
+            floorTexture[col][row][1] = g;
+            floorTexture[col][row][2] = b;
+        }
+    }
+}
+
+ //This method creates a coin(yellow coing) on each side of the rotating food(cube), in our maze we have total of 5 cubes using this texture
+//It draws a yellow coin(making it look like gold coin, like the one we have in classic running games)
+//along with the coin, it also assigns a bit darker yelllow color to the texels outside the coin
+void generateFoodTexture() {
+    //Finding the center coordinates of the texture(which in our case is always 32)
+    int centerX = TEXTURE_SIZE / 2;
+    int centerY = TEXTURE_SIZE / 2;
+
+    //defining the fixed radius for our coin(circle)
+    int radius = 24; 
+
+    //looping through every texel(pixel) in the texture of size 64*64 that we defined and setting color for each pixel manually
+    for (int col = 0; col < TEXTURE_SIZE; col++) {
+        for (int row = 0; row < TEXTURE_SIZE; row++) {
+            // Calculate distance of the current texel from the center point of the face/overall texture
+            int dx = row - centerX;              //horizontal distance from the center
+            int dy = col - centerY;              //vertical distance from the center
+
+            //now calculating the exact distance using the distance formula
+            float distance = sqrt(dx * dx + dy * dy);
+
+            //now based on the distance from the center, we will assign different color to each of the pixel to create a coin with a small border around it and a darker area outside the coin
+            
+            //now following the similar idea as generating the shooting ball
+            //for when the distance of the current pixel is less than the radius we defines, we will assign a yellow/gold type of color for our coin
+            if (distance < radius) {
+                //assigning yellow/gold color to the specific col and row(index) of the array 
+                foodTexture[col][row][0] = 255;
+                foodTexture[col][row][1] = 215;
                 foodTexture[col][row][2] = 0;
             }
+            //for when the distance lies greater than the radius value and a small fixed value of 3
+            //we draw the border for our yellow coin
+            //the small +3 in the if condition helps set the border to orange(a bit dark+brighter color than the coin's color)
+            else if (distance < radius + 3) {
+                //assigning orange(light yellow type) color to the specific col and row(index) of the array 
+                foodTexture[col][row][0] = 228;
+                foodTexture[col][row][1] = 155;
+                foodTexture[col][row][2] = 15;
+            }
+            //for when the distance is greater than the radius+3(outside the coin'g border) value
+            //we set the color to a dark yellow color
             else {
-                // Brick color setup with red value to 150
-                foodTexture[col][row][0] = 150;      // red
-                foodTexture[col][row][1] = 0;    //Green value
-                foodTexture[col][row][2] = 0;   //Blue value
+                //assigning dark color to the specific col and row(index) of the array 
+                foodTexture[col][row][0] = 139;
+                foodTexture[col][row][1] = 128;
+                foodTexture[col][row][2] = 0;
             }
         }
     }
 }
 
 void generateWallTexture() {
-    int brickWidth = 22;   // pixels per brick horizontally
-    int brickHeight = 13;   // pixels per brick vertically
-    int gap = 1;         // thickness of mortar in pixels
+    int brickWidth = 22;   // pixel size per brick horizontally
+    int brickHeight = 13;   // pixel size per brick vertically
+    int gap = 1;         // thickness of border between two bricks in pixels
 
     //looping over every pixel of our defined 64 * 64 image texutre, which becomes our texture for the walls
     for (int col = 0; col < TEXTURE_SIZE; col++) {
         for (int row = 0; row < TEXTURE_SIZE; row++) {
-
             //initializing which row of the bricks we current are in,
-            //dividing the current column with the brick height gives us specific row position in that column
+            //dividing the current column with the brick height gives us specific row position
             //in our case we will get,
-            //for columns 0 to 13: row will be 0
-            //for column 14-27
+            //for row 0, we will have pixels 0-12
+            //for row 1, we will have pixels 13-25
             int curRow = col / brickHeight;
 
-            //// Apply half-brick horizontal offset on every other row
-            int xShifted = row;
-            if (curRow % 2 == 1) {
-                xShifted = row + brickWidth / 2;
+            //Apply offset on every other row to just draw half brick making the pattern look more like wall
+            int shiftRow = row;         //assigning the original position, and only adding the offsets for odd rows
+            //checking if current row we are in is odd, and adding extra shift in the brick for making it look like real brick wall
+            if (curRow % 2 == 1) {   
+                shiftRow = row + brickWidth / 2;        //adding half a size of brick which makes odd row bricks to start in center of the normal bricks
             }
 
-            // Determine brick boundaries
-            int boundaryX = xShifted % brickWidth;
+            //finding where the specific texel lies within the brick
+            //for finding the boundry of brick in horizontal direction we take the modulo of the shifted row with the width of the brick
+            //this gives us specific horizontal index brick in which the texel/pixel lies in
+            int boundaryX = shiftRow % brickWidth;
+
+            //similarly, we compute the vertical boundary for determining which specific brick the current texel lies vertically
             int boundaryY = col % brickHeight;
 
-            // Check if current pixel is the gap between the bricks or the acctual brick
-            //we assign if the current pixel is the gap, by checking if any of the boundary variable of the brick is less than the defined gap size
+            //we have the following additional check to determine where do we have the border between the bricks
+            //by calculate if current pixel is the gap between the bricks
+            //by checking if any of the boundary variable of the brick is less than the defined gap size
+            //which in our case, we defined the gap/border size between the bricks to be 1
             bool isGap = false;
+            //checking if the current boundary/brick position is actually the border or the brick
             if ((boundaryY < gap) || (boundaryX < gap)) {
                 isGap = true;
             }
 
+            //if the current texel is actually a gap between two bricks, than we assign a different gray color
             if (isGap) {
                 // Light gray color for the gap between the bricks(like real mortar color)
                 brickTexture[col][row][0] = 220;
                 brickTexture[col][row][1] = 220;
                 brickTexture[col][row][2] = 220;
             }
+            //if the current texel doesnot fall in the gap area between the bricks, than we draw a red bricks 
             else {
                 // Brick color setup with red value to 150
                 brickTexture[col][row][0] = 150 ;      // red
@@ -198,6 +332,8 @@ void generateWallTexture() {
         }
     }
 }
+
+//----------------------------------------------------------------------------------------------------------//
 
 //Converts a angle from degrees to radians to use with trignometric functions
 //Takes angle in degree and and returns angle in radians
@@ -383,6 +519,7 @@ void moveDown() {
 //This method makes cube using triangles for each face
 //each face consists of two triangles, so we have total of 12 triangles in each cube
 //our method uses glBegin and glEnd to draw triangles
+//each face also has texture coordinates for applying textures into it
 void cubeMaker() {
     glEnable(GL_LIGHTING);      //making sure we enable lighting before starting to draw our triangles
     glCullFace(GL_BACK);        //i had to use this feature for also enabling the lighting inside of the cube(as when the camera goes in the cube it's looked black which seemed like error)
@@ -390,77 +527,109 @@ void cubeMaker() {
 //beggining drawing triangles
     
     glBegin(GL_QUADS);
-
+    //mapping the texture that we generated to the corners of the quads(squares)
+    
     // FRONT face (+Z)
     glNormal3f(0.0f, 0.0f, 1.0f);
-    glTexCoord2f(0.0f, 0.0f); 
+    glTexCoord2f(0.0f, 0.0f);               //0,0 is the bottom left of the texture 
     glVertex3f(-1.0f, -1.0f, 1.0f);
-    glTexCoord2f(1.0f, 0.0f); 
+    glTexCoord2f(1.0f, 0.0f);               //1,0 bottom right of the texture
     glVertex3f(1.0f, -1.0f, 1.0f);
-    glTexCoord2f(1.0f, 1.0f); 
-    glVertex3f(1.0f, 1.0f, 1.0f);
-    glTexCoord2f(0.0f, 1.0f); 
+    glTexCoord2f(1.0f, 1.0f);               //1, 1top right corner
+    glVertex3f(1.0f, 1.0f, 1.0f);   
+    glTexCoord2f(0.0f, 1.0f);               //0,1 top left corner
     glVertex3f(-1.0f, 1.0f, 1.0f);
 
     // BACK face (−Z)
     glNormal3f(0.0f, 0.0f, -1.0f);
-    glTexCoord2f(1.0f, 0.0f); 
+    glTexCoord2f(0.0f, 0.0f);               //0,0 is the bottom left of the texture 
     glVertex3f(-1.0f, -1.0f, -1.0f);
-    glTexCoord2f(0.0f, 0.0f); 
-    glVertex3f(1.0f, -1.0f, -1.0f);
-    glTexCoord2f(0.0f, 1.0f); 
-    glVertex3f(1.0f, 1.0f, -1.0f);
-    glTexCoord2f(1.0f, 1.0f); 
+    glTexCoord2f(0.0f, 1.0f);               //0,1 top left corner
     glVertex3f(-1.0f, 1.0f, -1.0f);
+    glTexCoord2f(1.0f, 1.0f);               //1, 1top right corner
+    glVertex3f(1.0f, 1.0f, -1.0f);
+    glTexCoord2f(1.0f, 0.0f);               //1,0 bottom right of the texture
+    glVertex3f(1.0f, -1.0f, -1.0f);
 
     // RIGHT face (+X)
     glNormal3f(1.0f, 0.0f, 0.0f);
-    glTexCoord2f(0.0f, 0.0f); 
+    glTexCoord2f(0.0f, 0.0f);               //0,0 is the bottom left of the texture 
     glVertex3f(1.0f, -1.0f, 1.0f);
-    glTexCoord2f(1.0f, 0.0f); 
+    glTexCoord2f(1.0f, 0.0f);               //1,0 bottom right of the texture
     glVertex3f(1.0f, -1.0f, -1.0f);
-    glTexCoord2f(1.0f, 1.0f); 
+    glTexCoord2f(1.0f, 1.0f);               //1, 1top right corner
     glVertex3f(1.0f, 1.0f, -1.0f);
-    glTexCoord2f(0.0f, 1.0f); 
+    glTexCoord2f(0.0f, 1.0f);               //0,1 top left corner
     glVertex3f(1.0f, 1.0f, 1.0f);
 
     // LEFT face (−X)
     glNormal3f(-1.0f, 0.0f, 0.0f);
-    glTexCoord2f(1.0f, 0.0f); 
+    glTexCoord2f(1.0f, 0.0f);          //1,0 bottom right of the texture
     glVertex3f(-1.0f, -1.0f, -1.0f);
-    glTexCoord2f(0.0f, 0.0f); 
+    glTexCoord2f(0.0f, 0.0f);           //0,0 is the bottom left of the texture 
     glVertex3f(-1.0f, -1.0f, 1.0f);
-    glTexCoord2f(0.0f, 1.0f); 
+    glTexCoord2f(0.0f, 1.0f);           //0,1 top left corner
     glVertex3f(-1.0f, 1.0f, 1.0f);
-    glTexCoord2f(1.0f, 1.0f); 
+    glTexCoord2f(1.0f, 1.0f);           //1, 1top right corner
     glVertex3f(-1.0f, 1.0f, -1.0f);
 
     // TOP face (+Y)
     glNormal3f(0.0f, 1.0f, 0.0f);
-    glTexCoord2f(0.0f, 1.0f); 
+    glTexCoord2f(0.0f, 1.0f);               //0,1 top left corner
     glVertex3f(-1.0f, 1.0f, 1.0f);
-    glTexCoord2f(1.0f, 1.0f); 
+    glTexCoord2f(1.0f, 1.0f);               //1, 1top right corner
     glVertex3f(1.0f, 1.0f, 1.0f);
-    glTexCoord2f(1.0f, 0.0f); 
+    glTexCoord2f(1.0f, 0.0f);               //1,0 bottom right of the texture
     glVertex3f(1.0f, 1.0f, -1.0f);
-    glTexCoord2f(0.0f, 0.0f); 
+    glTexCoord2f(0.0f, 0.0f);               //0,0 is the bottom left of the texture 
     glVertex3f(-1.0f, 1.0f, -1.0f);
 
     // BOTTOM face (−Y)
     glNormal3f(0.0f, -1.0f, 0.0f);
-    glTexCoord2f(0.0f, 0.0f); 
+    glTexCoord2f(0.0f, 0.0f);               //0,0 is the bottom left of the texture 
     glVertex3f(-1.0f, -1.0f, -1.0f);
-    glTexCoord2f(1.0f, 0.0f); 
+    glTexCoord2f(1.0f, 0.0f);               //1,0 bottom right of the texture
     glVertex3f(1.0f, -1.0f, -1.0f);
-    glTexCoord2f(1.0f, 1.0f); 
+    glTexCoord2f(1.0f, 1.0f);               //1, 1top right corner
     glVertex3f(1.0f, -1.0f, 1.0f);
-    glTexCoord2f(0.0f, 1.0f); 
+    glTexCoord2f(0.0f, 1.0f);               //0,1 top left corner
     glVertex3f(-1.0f, -1.0f, 1.0f);
 
     glEnd();
 }
 
+//This method draws a solid square for the floor in our map.
+//it has just one face drawn using GL_QUADS
+//the main purpose of drawing the floor is for applying a floor/green texture to the map 
+//it follows the same methods as used in drawing the walls of the map, which uses translation and scaling to map the square to our defined world
+//This method draws the square, along with applying the green texture to it
+void floorDrawer(float xD, float zD) {
+    glPushMatrix();
+    glTranslatef(xD + cellBreadth / 2.0f, cellHeight / 2.0f, zD + cellBreadth / 2.0f);  //make sure the cube is centered in each cell
+    glScalef(cellBreadth / 2.0f, cellHeight / 2.0f, cellBreadth / 2.0f);        //we scale each cube to the size of a cell
+    glColor3f(1.0f, 1.0f, 1.0f);  // White to show texture
+    glEnable(GL_TEXTURE_2D);                    //enabling 2D texturing
+    glBindTexture(GL_TEXTURE_2D, floorID);      //bounding the current matrix drawing with the floor texture which we generated using generateFloorTexture method
+
+    glBegin(GL_QUADS);
+    // BOTTOM face (−Y)
+    glNormal3f(0.0f, -1.0f, 0.0f);
+    glTexCoord2f(0.0f, 0.0f);
+    glVertex3f(-1.0f, -1.0f, -1.0f);
+    glTexCoord2f(1.0f, 0.0f);
+    glVertex3f(1.0f, -1.0f, -1.0f);
+    glTexCoord2f(1.0f, 1.0f);
+    glVertex3f(1.0f, -1.0f, 1.0f);
+    glTexCoord2f(0.0f, 1.0f);
+    glVertex3f(-1.0f, -1.0f, 1.0f);
+    glEnd();
+
+    glDisable(GL_TEXTURE_2D);   //turning off the texturing
+    glPopMatrix();
+}
+
 //This method draws the map and places walls and red rotating cubes
+// when drawing each items, the method makes sure to properly turn on and off the texturing modes, and also assigns the specific textures for each game objects(in our case we used texture for wall, bouncing box, rotating food/box, and additionally floor)
 //It also handles different conditions for changing the state of any map items, like changing wall color, changing the color of red rotating boxes etc.
 void mapDraw() {
     //looping over each row and coloumn of our initial array we defined for creating a maze
@@ -470,43 +639,58 @@ void mapDraw() {
             //calculating the coordinates for each cell
             float xD = lef + j * cellBreadth;
             float zD = bot + i * cellHeight;
-
+            
+            //adding a new condition for drawing the floor(drawing a solid square for when the map has 0)
+            if (map[i][j] == 0) {
+                //this floor is drawn ensuring no collision with floor is detected(which is handled inside the collision detection fuction, where the collision is only checked for map value fo 1
+                floorDrawer(xD, zD);    //calling our floowdrawer method to draw a green looking floor in the map where we have nothing/empty floor space, i.e map value =0
+            }
             //when we have 1 in our map array, we place wall in our map construction
-            if (map[i][j] == 1) {
+            else if (map[i][j] == 1) {
                 float cubeHeight = 1.0f;    //heaight of each wall for the maze
                 glPushMatrix();
                 glTranslatef(xD + cellBreadth / 2.0f, cellHeight / 2.0f, zD + cellBreadth / 2.0f);  //make sure the cube is centered in each cell
                 glScalef(cellBreadth / 2.0f, cellHeight / 2.0f, cellBreadth / 2.0f);        //we scale each cube to the size of a cell
-                //glColor3f(0.3627f, 0.2451f, 0.0176f);       //setting the color to be yellow+brown before we start our drawing to make our walls
-                glEnable(GL_TEXTURE_2D);
-                glBindTexture(GL_TEXTURE_2D, brickID);
-                cubeMaker();        //calling our cubeMaker function, which makes a solid cube using triangles
-                glDisable(GL_TEXTURE_2D);
+                glColor3f(1.0f, 1.0f, 1.0f);        // Defining a starting color as white(because when directly applying the texture, for some reason when food was eaten, the texture on a random single wall was being changed
+                //drawing our wall cubes by enabling texture and calling the cube drawing method
+                glEnable(GL_TEXTURE_2D);                    //turning on the texturing
+                glBindTexture(GL_TEXTURE_2D, brickID);      //using the brickID which stores our texture for brick wall
+                cubeMaker();                                //calling our cubeMaker function, which makes a solid cube using triangles
+                glDisable(GL_TEXTURE_2D);                   //disabling the texturing after each cubes are drawn
                 glPopMatrix();
             }
             //when we have 2 in our map array, we place red rotating cube in our map
             else if (map[i][j] == 2) {
+                floorDrawer(xD, zD);        //we are also calling the floor drawing method first to cover up the empty space we have below our rotating box
+
                 float cubeHeight = 0.32f;       //length for each side of the red cube
                 glPushMatrix();
                 glTranslatef(xD + cellBreadth / 2.0f, cellHeight / 2.0f, zD + cellHeight / 2.0f);  //y is floor
                 glRotatef(rotAng, 0.0f, 1.0f, 0.0f);        //rotating the cube with some angle rotAng(which is constantly changed using the timer function)
                 glScalef((cellBreadth / 2.0f) * cubeHeight, (cellHeight / 2.0f) * cubeHeight, (cellBreadth / 2.0f) * cubeHeight);
-                glColor3f(1.0f, 1.0f, 1.0f);
-                glEnable(GL_TEXTURE_2D);
-                glBindTexture(GL_TEXTURE_2D, foodID);
-                cubeMaker();                        //calling our cubeMaker function, which makes a solid cube using triangles
-                glDisable(GL_TEXTURE_2D);
+                glColor3f(1.0f, 1.0f, 1.0f);        //defining a starting color for the rotating cube as white, and pasting a texture above it      
+                //drawing our eatable cubes by enabling texture and calling the cube drawing method
+                glEnable(GL_TEXTURE_2D);                    //turning on the texturing
+                glBindTexture(GL_TEXTURE_2D, foodID);       //using the foodID which stores our texture for food(ie. coin type of look)
+                cubeMaker();                                //calling our cubeMaker function, which makes a solid cube using triangles
+                glDisable(GL_TEXTURE_2D);                   //disabling the texturing after each cubes are drawn
                 glPopMatrix();
             }
             //when we have 3 in our map array(or if some cell changes to the value of 3), we place green rotating cube in our map
             else if (map[i][j] == 3) {
+                floorDrawer(xD, zD);    //we are calling the floor drawing method first to cover up the empty space we have below our rotating box
+
                 float cubeHeight = 0.32f;   //length for each side of the green cube
                 glPushMatrix();
                 glTranslatef(xD + cellBreadth / 2.0f, cellHeight / 2.0f, zD + cellHeight / 2.0f);  //y is floor
                 glRotatef(rotAng, 0.0f, 1.0f, 0.0f);
                 glScalef((cellBreadth / 2.0f) * cubeHeight, (cellHeight / 2.0f) * cubeHeight, (cellBreadth / 2.0f) * cubeHeight);
-                //glColor3f(0.0f, 0.8f, 0.0f);        //setting the color to green before starting to draw our cube
+
+                glColor3f(0.0f, 1.0f, 0.0f);  //setting initial color to green, to indicate the captured box(texture will be applied on green, making it look like green/dead box
+                glEnable(GL_TEXTURE_2D);                    //turning on the texturing
+                glBindTexture(GL_TEXTURE_2D, foodID);           //using the foodID which stores our texture for food(ie. coin type of look)
                 cubeMaker();                        //calling our cubeMaker function, which makes a solid cube using triangles
+                glDisable(GL_TEXTURE_2D);               //disabling the texturing after each cubes are drawn
                 glPopMatrix();
             }
             //when we have 4 in our map array(this happens in our game end condition), we change all the walls to green color
@@ -515,8 +699,12 @@ void mapDraw() {
                 glPushMatrix();
                 glTranslatef(xD + cellBreadth / 2.0f, cellHeight / 2.0f, zD + cellBreadth / 2.0f);  //y is floor
                 glScalef(cellBreadth / 2.0f, cellHeight / 2.0f, cellBreadth / 2.0f);
-                //glColor3f(0.0f, 0.8f, 0.0f);        //setting the color to green before starting to draw our cube
-                cubeMaker();                        //calling our cubeMaker function, which makes a solid cube using triangles
+
+                glColor3f(0.0f, 1.0f, 0.0f);  //Setting the initial color the green making our red brich wall to appear dark green(indicating game end condition)
+                glEnable(GL_TEXTURE_2D);                //turning on the texturing
+                glBindTexture(GL_TEXTURE_2D, brickID);  //using the brickID which stores our texture forbrick wall
+                cubeMaker();    //calling our cubeMaker function, which makes a solid cube using triangles
+                glDisable(GL_TEXTURE_2D);               //disabling the texturing after each cubes are drawn
                 glPopMatrix();
             }
         }
@@ -674,6 +862,7 @@ void keyboardpress(unsigned char key, int x, int y) {
 
 //This method initializes camera positions, modes for the maze, sets lighting as well as creates a blue box into the screen when needed
 //this function is called everytime the screen needs to be redrawn/refreshed
+// the method also properly assigns the specific bouncing ball texture to the cube being drawn
 void display(void)
 {
     //calculating the aspect ratio of our screen size
@@ -718,10 +907,18 @@ void display(void)
         glTranslatef(blueX, blueY, blueZ);
 
         // rotating the blue box as it is created on the screen
+        //the blue color for the box is applied as a texture where we generate a blue pattern for the box being fired
         glRotatef(blueRot, 1.0f, 0.5f, 0.2f);
-        //setting the color for the box to blue
-        //glColor3f(0.0f, 0.0f, 0.8f);
-        glutSolidCube(0.015f);      //using glut inbuilt function to create a solid cube, as we wanted a smaller cube 
+        // Scale it down to make it small 
+        // Half of 0.015f, in the Maze lab, i actually used the inbuilt method for drawing the cube by defining the size. 
+        //here since we need to apply texture i am using the same cubemaker function to draw the cube by scaling down the size
+        glScalef(0.0075f, 0.0075f, 0.0075f);  
+
+        glColor3f(1.0f, 1.0f, 1.0f);  // White to show texture
+        glEnable(GL_TEXTURE_2D);    //turning on the texturing
+        glBindTexture(GL_TEXTURE_2D, fireID);           //using the fireID which stores our texture for the bouncing box that is fired
+        cubeMaker();  // Use your custom function instead
+        glDisable(GL_TEXTURE_2D);               //disabling the texture 
         glPopMatrix();
     }
 
@@ -734,6 +931,7 @@ void display(void)
 // Sets the window title 
 // Hides the cursor when it's inside thw window
 // Initializes camera direction by calling cameraDirection function
+//enables all the main componenets like DEPTH test, lightning, setup all the textures and stores it in a specific textureID
 int main(int argc, char** argv)
 {
     // First set up GLUT
@@ -749,7 +947,7 @@ int main(int argc, char** argv)
     glutInitWindowPosition(100, 100);
 
     // Make the window with a title
-    int windowHandle = glutCreateWindow("Maze Game 3d");
+    int windowHandle = glutCreateWindow("Maze Game 3D");
     glutSetWindow(windowHandle);
 
     //initializing camera direction before rendering anything in screen
@@ -775,27 +973,53 @@ int main(int argc, char** argv)
     glEnable(GL_LIGHTING);      //enabling lighting(firstly switching to lighting mode)
     glEnable(GL_LIGHT0);        //and turning on a first light LIGHT0
     glEnable(GL_COLOR_MATERIAL);        //enablind color material so that our cube colors interact with the light coming our of LIGHT0
-    //glEnable(GL_TEXTURE_2D);
     glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
 
-    glGenTextures(1, &brickID);
-    glBindTexture(GL_TEXTURE_2D, brickID);
-    generateWallTexture();
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    //-----------------------------------TEXTURING SETUP----------------------------------//
+    //this specific part makes all our textures before starting the main game
+    //we create four different textures that we are using in our maze, i.e. brick texxture, coin texture(for rotating red cube), blue ring pattern(for bouncing box), and green grass type of pattern for our floor
 
+    //generating first texture for Brick pattern in wall
+    glGenTextures(1, &brickID);             //creating a texture and generates a ID, which is assigned to brickID since we are passing it by reference
+    glBindTexture(GL_TEXTURE_2D, brickID);  //enabling the brickID texture to make any changes to it
+    generateWallTexture();                     //calling our method to initialize the texture array with brick pattern(different rgb values to make brick patttern)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);           //here we are using min_filter and gl_linear to smooth our textures that we appied to wall, so when seen from distance, it looks smooth(and looks blending properly with out lighting asw ell)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);           //here we are using mag_filter and gl_linear, to also smooth and blend our texture but in this case, it will make the textures smooth which are near the camera or zoomed in 
+    //here we are using glTexImage2D, to make our array into a texture and store it for using it
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, TEXTURE_SIZE, TEXTURE_SIZE, 0,
         GL_RGB, GL_UNSIGNED_BYTE, brickTexture);
 
-    
-    glGenTextures(1, &foodID);
-    glBindTexture(GL_TEXTURE_2D, foodID);
-    generateFoodTexture();
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
+    //Generating second texture for rotating cube
+    glGenTextures(1, &foodID);                      //creating a texture and generates a ID, which is assigned to foodID since we are passing it by reference
+    glBindTexture(GL_TEXTURE_2D, foodID);           //enabling the foodID texture to make any changes to it
+    generateFoodTexture();               //calling our method to initialize the texture array with coing pattern for our cube, which makes all sides of the cube to make coin shape
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);           //using min_filter and gl_linear to smooth our textures that we appied to wall
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);           //here we are using mag_filter and gl_linear, to also smooth and blend our texture but in this case, it will make the textures smooth which are near the camera or zoomed in 
+    //here we are using glTexImage2D, to make our array into a texture and store it for using it
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, TEXTURE_SIZE, TEXTURE_SIZE, 0,
         GL_RGB, GL_UNSIGNED_BYTE, foodTexture);
+
+    //Generating third texture for bouncing cube
+    glGenTextures(1, &fireID);                  //creating a texture and generates a ID, which is assigned to fireID since we are passing it by reference
+    glBindTexture(GL_TEXTURE_2D, fireID);           //enabling the fireID texture to make any changes to it
+    generateShootBoxTexture();                  //calling our method to initialize the texture array with increasing circular pattern where for each circle there is different color of blue(inner to outer circle -->>  bright to darker blue
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);           //using min_filter and gl_linear to smooth our textures that we appied to wall
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);               //here we are using mag_filter and gl_linear, to also smooth and blend our textures
+    //here we are using glTexImage2D, to make our array into a texture and store it for using it
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, TEXTURE_SIZE, TEXTURE_SIZE, 0,
+        GL_RGB, GL_UNSIGNED_BYTE, fireTexture);
+
+    //Generating fourth texture for the floor(every position where in our map array we have the value of 0)
+    glGenTextures(1, &floorID);                         //creating a texture and generates a ID, which is assigned to floorID since we are passing it by reference
+    glBindTexture(GL_TEXTURE_2D, floorID);               //enabling the floorID texture to make any changes to it
+    generateFloorTexture();                 //calling our method to initialize the texture array with a simple solid green color(with a random noise to make it look like grass)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);       //using min_filter and gl_linear to smooth our textures that we appied to wall
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);            //here we are using mag_filter and gl_linear, to also smooth and blend our textures
+    //here we are using glTexImage2D, to make our array into a texture and store it for using it
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, TEXTURE_SIZE, TEXTURE_SIZE, 0,
+        GL_RGB, GL_UNSIGNED_BYTE, floorTexture);
+
+    //------------------------------------------------------------------------------------//
 
     glutMainLoop();
 
